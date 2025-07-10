@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<TargetFramework>net8.0-windows</TargetFramework>
+		<UseWPF>true</UseWPF>
+		<RootNamespace>ToDoHicky</RootNamespace>
+		<ApplicationIcon>todo.ico</ApplicationIcon>
+	</PropertyGroup>
+	<ItemGroup>
+		<Content Include="todo.ico" />
+		<None Update="tasks.csv">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
+</Project>

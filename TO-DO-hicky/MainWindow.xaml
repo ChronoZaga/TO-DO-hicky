@@ -1,0 +1,72 @@
+﻿<Window x:Class="ToDoHicky.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:sys="clr-namespace:System;assembly=mscorlib"
+        Title="TO-DO-hicky" Height="450" Width="1000">
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="2*"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+            <Button Content="Add Task" Click="AddTask_Click" Margin="0,0,5,0" Padding="5"/>
+            <Button Content="Save" Click="SaveTasks_Click" Padding="5"/>
+        </StackPanel>
+        <CheckBox x:Name="HideCompletedCheckBox" Content="Hide Completed Tasks" Margin="107,6,0,16" Checked="HideCompletedCheckBox_Checked" Unchecked="HideCompletedCheckBox_Unchecked"/>
+        <DataGrid Grid.Row="2" x:Name="TasksGrid" AutoGenerateColumns="False" CanUserAddRows="False" ItemsSource="{Binding FilteredTasks.View}" PreviewKeyDown="TasksGrid_PreviewKeyDown" MouseDown="TasksGrid_MouseDown" SelectionChanged="TasksGrid_SelectionChanged">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="ID" Binding="{Binding TaskID}" Width="50" IsReadOnly="True"/>
+                <DataGridTextColumn Header="Task" Binding="{Binding TaskName}" Width="*"/>
+                <DataGridComboBoxColumn Header="Status" SelectedItemBinding="{Binding Status}" Width="100">
+                    <DataGridComboBoxColumn.ItemsSource>
+                        <x:Array Type="{x:Type sys:String}">
+                            <sys:String>Not Started</sys:String>
+                            <sys:String>In Progress</sys:String>
+                            <sys:String>Completed</sys:String>
+                        </x:Array>
+                    </DataGridComboBoxColumn.ItemsSource>
+                </DataGridComboBoxColumn>
+                <DataGridTextColumn Header="Assigned User" Binding="{Binding AssignedUser}" Width="150"/>
+                <DataGridTemplateColumn Header="Due Date" Width="120">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding DueDate, StringFormat=yyyy-MM-dd}"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                    <DataGridTemplateColumn.CellEditingTemplate>
+                        <DataTemplate>
+                            <DatePicker SelectedDate="{Binding DueDate}"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellEditingTemplate>
+                </DataGridTemplateColumn>
+                <DataGridComboBoxColumn Header="Priority" SelectedItemBinding="{Binding Priority}" Width="100">
+                    <DataGridComboBoxColumn.ItemsSource>
+                        <x:Array Type="{x:Type sys:String}">
+                            <sys:String>Low</sys:String>
+                            <sys:String>Medium</sys:String>
+                            <sys:String>High</sys:String>
+                            <sys:String>URGENT</sys:String>
+                        </x:Array>
+                    </DataGridComboBoxColumn.ItemsSource>
+                </DataGridComboBoxColumn>
+                <DataGridTemplateColumn Header="Notes" Width="200">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Notes}" TextTrimming="CharacterEllipsis"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                    <DataGridTemplateColumn.CellEditingTemplate>
+                        <DataTemplate>
+                            <TextBox Text="{Binding Notes, UpdateSourceTrigger=LostFocus}"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellEditingTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+        <TextBox Grid.Row="3" x:Name="NotesTextBox" AcceptsReturn="True" AcceptsTab="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Text="{Binding SelectedItem.Notes, ElementName=TasksGrid, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding HasSelectedTask}"/>
+        <TextBlock Grid.Row="4" x:Name="StatusText" Margin="0,10,0,0" Foreground="Red"/>
+    </Grid>
+</Window>
