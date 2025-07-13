@@ -1,9 +1,17 @@
-﻿<Window x:Class="ToDoHicky.MainWindow"
+﻿<!-- Main window for the TO-DO-hicky app using WPF -->
+<Window x:Class="ToDoHicky.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
+        xmlns:local="clr-namespace:ToDoHicky"
         Title="TO-DO-hicky" Height="450" Width="1000">
+    <!-- Define resources used in the window, like the FlattenNewlinesConverter -->
+    <Window.Resources>
+        <local:FlattenNewlinesConverter x:Key="FlattenNewlinesConverter"/>
+    </Window.Resources>
+    <!-- Main layout grid with margins -->
     <Grid Margin="10">
+        <!-- Define grid rows: buttons, checkbox, datagrid, notes textbox, status text -->
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -11,15 +19,28 @@
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
+        <!-- Horizontal stack panel for action buttons -->
         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
             <Button Content="Add Task" Click="AddTask_Click" Margin="0,0,5,0" Padding="5"/>
             <Button Content="Save" Click="SaveTasks_Click" Padding="5"/>
         </StackPanel>
+        <!-- Checkbox to toggle visibility of completed tasks -->
         <CheckBox x:Name="HideCompletedCheckBox" Content="Hide Completed Tasks" Margin="107,6,0,16" Checked="HideCompletedCheckBox_Checked" Unchecked="HideCompletedCheckBox_Unchecked"/>
+        <!-- DataGrid to display tasks with custom columns and heatmap coloring -->
         <DataGrid Grid.Row="2" x:Name="TasksGrid" AutoGenerateColumns="False" CanUserAddRows="False" ItemsSource="{Binding FilteredTasks.View}" PreviewKeyDown="TasksGrid_PreviewKeyDown" MouseDown="TasksGrid_MouseDown" SelectionChanged="TasksGrid_SelectionChanged">
+            <!-- Apply heatmap color to row background based on task status -->
+            <DataGrid.RowStyle>
+                <Style TargetType="DataGridRow">
+                    <Setter Property="Background" Value="{Binding HeatMapColor}"/>
+                </Style>
+            </DataGrid.RowStyle>
+            <!-- Define columns for the DataGrid -->
             <DataGrid.Columns>
+                <!-- ID column, read-only -->
                 <DataGridTextColumn Header="ID" Binding="{Binding TaskID}" Width="50" IsReadOnly="True"/>
+                <!-- Task name column, resizable -->
                 <DataGridTextColumn Header="Task" Binding="{Binding TaskName}" Width="*"/>
+                <!-- Status dropdown with predefined options -->
                 <DataGridComboBoxColumn Header="Status" SelectedItemBinding="{Binding Status}" Width="100">
                     <DataGridComboBoxColumn.ItemsSource>
                         <x:Array Type="{x:Type sys:String}">
@@ -29,7 +50,9 @@
                         </x:Array>
                     </DataGridComboBoxColumn.ItemsSource>
                 </DataGridComboBoxColumn>
+                <!-- Assigned user column -->
                 <DataGridTextColumn Header="Assigned User" Binding="{Binding AssignedUser}" Width="150"/>
+                <!-- Due date column with date picker for editing -->
                 <DataGridTemplateColumn Header="Due Date" Width="120">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
@@ -42,6 +65,7 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellEditingTemplate>
                 </DataGridTemplateColumn>
+                <!-- Priority dropdown with predefined options -->
                 <DataGridComboBoxColumn Header="Priority" SelectedItemBinding="{Binding Priority}" Width="100">
                     <DataGridComboBoxColumn.ItemsSource>
                         <x:Array Type="{x:Type sys:String}">
@@ -52,10 +76,11 @@
                         </x:Array>
                     </DataGridComboBoxColumn.ItemsSource>
                 </DataGridComboBoxColumn>
+                <!-- Notes column with single-line display and multi-line editing -->
                 <DataGridTemplateColumn Header="Notes" Width="200">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <TextBlock Text="{Binding Notes}" TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Text="{Binding Notes, Converter={StaticResource FlattenNewlinesConverter}}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                     <DataGridTemplateColumn.CellEditingTemplate>
@@ -66,7 +91,9 @@
                 </DataGridTemplateColumn>
             </DataGrid.Columns>
         </DataGrid>
+        <!-- TextBox for editing selected task's notes -->
         <TextBox Grid.Row="3" x:Name="NotesTextBox" AcceptsReturn="True" AcceptsTab="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Text="{Binding SelectedItem.Notes, ElementName=TasksGrid, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding HasSelectedTask}"/>
+        <!-- Status text for feedback messages -->
         <TextBlock Grid.Row="4" x:Name="StatusText" Margin="0,10,0,0" Foreground="Red"/>
     </Grid>
 </Window>
