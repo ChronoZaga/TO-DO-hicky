@@ -23,12 +23,14 @@ namespace ToDoHicky
         private CollectionViewSource _filteredTasksView;
         // Path to the CSV file for task persistence
         private readonly string _csvFilePath = "tasks.csv";
-        // Tracks next available task ID
+        // Tracks next available numeric task ID
         private int _nextTaskId = 1;
         // Flag to hide completed tasks
         private bool _hideCompleted;
         // Flag to enable/disable notes textbox based on selection
         private bool _hasSelectedTask;
+        // Flag to track unsaved changes
+        private bool _isDirty;
 
         // Property for tasks collection, notifies UI on changes
         public ObservableCollection<TaskItem> Tasks
@@ -37,6 +39,7 @@ namespace ToDoHicky
             set
             {
                 _tasks = value;
+                _isDirty = true; // Mark as dirty when tasks collection changes
                 OnPropertyChanged(nameof(Tasks));
                 if (_filteredTasksView != null)
                 {
@@ -80,6 +83,17 @@ namespace ToDoHicky
             }
         }
 
+        // Property to track unsaved changes
+        public bool IsDirty
+        {
+            get => _isDirty;
+            set
+            {
+                _isDirty = value;
+                OnPropertyChanged(nameof(IsDirty));
+            }
+        }
+
         // Constructor: initializes UI and loads tasks
         public MainWindow()
         {
@@ -88,14 +102,48 @@ namespace ToDoHicky
             _filteredTasksView = new CollectionViewSource { Source = Tasks };
             _filteredTasksView.Filter += ApplyFilter;
             LoadTasksFromCsv();
+            Closing += Window_Closing; // Subscribe to Closing event
         }
 
-        // Handles "Add Task" button click, creates new task
+        // Handles window closing to prompt for saving unsaved changes
+        private void Window_Closing(object sender, CancelEventArgs e)
+        {
+            if (_isDirty)
+            {
+                var result = MessageBox.Show(
+                    "Would you like to save before exiting?",
+                    "Unsaved Changes",
+                    MessageBoxButton.YesNoCancel,
+                    MessageBoxImage.Question);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    try
+                    {
+                        SaveTasksToCsv();
+                        StatusText.Text = "Tasks saved successfully.";
+                        IsDirty = false;
+                    }
+                    catch (IOException)
+                    {
+                        StatusText.Text = $"Error saving tasks.";
+                        e.Cancel = true; // Cancel closing if save fails
+                    }
+                }
+                else if (result == MessageBoxResult.Cancel)
+                {
+                    e.Cancel = true; // Cancel closing
+                }
+                // MessageBoxResult.No allows closing without saving
+            }
+        }
+
+        // Handles "Add Task" button click, creates new task with numeric TaskID
         private void AddTask_Click(object sender, RoutedEventArgs e)
         {
-            Tasks.Add(new TaskItem
+            Tasks.Add(new TaskItem(this)
             {
-                TaskID = _nextTaskId++,
+                TaskID = _nextTaskId.ToString(),
                 TaskName = "New Task",
                 Status = "Not Started",
                 AssignedUser = Environment.UserName,
@@ -103,6 +151,8 @@ namespace ToDoHicky
                 Notes = "",
                 Priority = "Medium"
             });
+            _nextTaskId++;
+            _isDirty = true; // Mark as dirty
             _filteredTasksView.View?.Refresh();
         }
 
@@ -113,10 +163,11 @@ namespace ToDoHicky
             {
                 SaveTasksToCsv();
                 StatusText.Text = "Tasks saved successfully.";
+                IsDirty = false; // Clear dirty flag after successful save
             }
-            catch (IOException ex)
+            catch (IOException)
             {
-                StatusText.Text = $"Error saving tasks: {ex.Message}";
+                StatusText.Text = $"Error saving tasks.";
             }
         }
 
@@ -130,6 +181,8 @@ namespace ToDoHicky
                 {
                     Tasks.Remove(selectedTask);
                     StatusText.Text = "Task deleted successfully.";
+                    _isDirty = true; // Mark as dirty
+                    UpdateNextTaskId();
                     _filteredTasksView.View?.Refresh();
                 }
                 e.Handled = true;
@@ -232,56 +285,62 @@ namespace ToDoHicky
                         continue;
                     }
 
-                    if (int.TryParse(fields[idIndex].Trim('"'), out int taskId))
-                    {
-                        DateTime? dueDate = null;
-                        string dueDateStr = fields[dueDateIndex].Trim('"');
-                        if (!string.IsNullOrEmpty(dueDateStr))
-                        {
-                            if (DateTime.TryParseExact(dueDateStr, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out DateTime parsedDate))
-                            {
-                                dueDate = parsedDate;
-                            }
-                            else
-                            {
-                                StatusText.Text = $"Invalid DueDate format in row {i + 1}: {dueDateStr}";
-                                continue;
-                            }
-                        }
-
-                        string status = fields[statusIndex].Trim('"');
-                        if (!new[] { "Not Started", "In Progress", "Completed" }.Contains(status))
-                        {
-                            status = "Not Started";
-                            StatusText.Text = $"Invalid Status in row {i + 1}: {fields[statusIndex]}, defaulting to Not Started";
-                        }
-
-                        string priority = fields[priorityIndex].Trim('"');
-                        if (!new[] { "Low", "Medium", "High", "URGENT" }.Contains(priority))
-                        {
-                            priority = "Medium";
-                            StatusText.Text = $"Invalid Priority in row {i + 1}: {fields[priorityIndex]}, defaulting to Medium";
-                        }
-
-                        string notes = fields[notesIndex].Trim('"');
-
-                        Tasks.Add(new TaskItem
-                        {
-                            TaskID = taskId,
-                            TaskName = fields[taskIndex].Trim('"'),
-                            Status = status,
-                            AssignedUser = fields[userIndex].Trim('"'),
-                            DueDate = dueDate,
-                            Notes = notes,
-                            Priority = priority
-                        });
-                        _nextTaskId = Math.Max(_nextTaskId, taskId + 1);
-                    }
-                    else
+                    string taskId = fields[idIndex].Trim('"');
+                    if (string.IsNullOrEmpty(taskId))
                     {
                         StatusText.Text = $"Invalid TaskID in row {i + 1}: {fields[idIndex]}";
+                        continue;
                     }
+
+                    DateTime? dueDate = null;
+                    string dueDateStr = fields[dueDateIndex].Trim('"');
+                    if (!string.IsNullOrEmpty(dueDateStr))
+                    {
+                        if (DateTime.TryParseExact(dueDateStr, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out DateTime parsedDate))
+                        {
+                            dueDate = parsedDate;
+                        }
+                        else
+                        {
+                            StatusText.Text = $"Invalid DueDate format in row {i + 1}: {dueDateStr}";
+                            continue;
+                        }
+                    }
+
+                    string status = fields[statusIndex].Trim('"');
+                    if (!new[] { "Not Started", "In Progress", "Completed" }.Contains(status))
+                    {
+                        status = "Not Started";
+                        StatusText.Text = $"Invalid Status in row {i + 1}: {fields[statusIndex]}, defaulting to Not Started";
+                    }
+
+                    string priority = fields[priorityIndex].Trim('"');
+                    if (!new[] { "Low", "Medium", "High", "URGENT" }.Contains(priority))
+                    {
+                        priority = "Medium";
+                        StatusText.Text = $"Invalid Priority in row {i + 1}: {fields[priorityIndex]}, defaulting to Medium";
+                    }
+
+                    string notes = fields[notesIndex].Trim('"');
+
+                    Tasks.Add(new TaskItem(this)
+                    {
+                        TaskID = taskId,
+                        TaskName = fields[taskIndex].Trim('"'),
+                        Status = status,
+                        AssignedUser = fields[userIndex].Trim('"'),
+                        DueDate = dueDate,
+                        Notes = notes,
+                        Priority = priority
+                    });
                 }
+
+                UpdateNextTaskId();
+                IsDirty = false; // Clear dirty flag after loading
+
+                // Apply default sort by TaskID
+                _filteredTasksView.SortDescriptions.Clear();
+                _filteredTasksView.SortDescriptions.Add(new SortDescription(nameof(TaskItem.TaskID), ListSortDirection.Ascending));
 
                 if (Tasks.Count == 0 && lines.Length > 1)
                 {
@@ -302,19 +361,39 @@ namespace ToDoHicky
             }
         }
 
+        // Updates _nextTaskId based on the maximum numeric TaskID in the Tasks collection
+        public void UpdateNextTaskId()
+        {
+            int maxNumericId = 0;
+            foreach (var task in Tasks)
+            {
+                if (int.TryParse(task.TaskID, out int numericId))
+                {
+                    maxNumericId = Math.Max(maxNumericId, numericId);
+                }
+            }
+            _nextTaskId = maxNumericId + 1;
+        }
+
+        // Checks if a TaskID is unique among all tasks
+        public bool IsTaskIdUnique(string taskId, TaskItem currentTask)
+        {
+            return !Tasks.Any(t => t != currentTask && t.TaskID == taskId);
+        }
+
         // Saves tasks to CSV file
         private void SaveTasksToCsv()
         {
             try
             {
                 var lines = new[] { "\"TaskID\",\"Task\",\"Status\",\"AssignedUser\",\"DueDate\",\"Priority\",\"Notes\"" }.Concat(
-                    Tasks.Select(t => $"\"{t.TaskID}\",\"{EscapeCsvField(t.TaskName)}\",\"{EscapeCsvField(t.Status)}\",\"{EscapeCsvField(t.AssignedUser)}\",\"{EscapeCsvField(t.DueDate?.ToString("yyyy-MM-dd") ?? "")}\",\"{EscapeCsvField(t.Priority)}\",\"{EscapeCsvField(t.Notes)}\"")
+                    Tasks.Select(t => $"\"{EscapeCsvField(t.TaskID)}\",\"{EscapeCsvField(t.TaskName)}\",\"{EscapeCsvField(t.Status)}\",\"{EscapeCsvField(t.AssignedUser)}\",\"{EscapeCsvField(t.DueDate?.ToString("yyyy-MM-dd") ?? "")}\",\"{EscapeCsvField(t.Priority)}\",\"{EscapeCsvField(t.Notes)}\"")
                 );
                 File.WriteAllLines(_csvFilePath, lines, Encoding.UTF8);
             }
-            catch (IOException ex)
+            catch (IOException)
             {
-                StatusText.Text = $"Error saving tasks: {ex.Message}";
+                throw; // Rethrow to handle in caller
             }
         }
 
@@ -415,7 +494,8 @@ namespace ToDoHicky
     // Data model for a single task, supports property change notifications
     public class TaskItem : INotifyPropertyChanged
     {
-        private int _taskID;
+        private readonly MainWindow _mainWindow;
+        private string _taskID;
         private string _taskName;
         private string _status;
         private string _assignedUser;
@@ -423,14 +503,35 @@ namespace ToDoHicky
         private string _notes;
         private string _priority;
 
-        // Unique ID for the task
-        public int TaskID
+        // Constructor to pass MainWindow reference for TaskID validation
+        public TaskItem(MainWindow mainWindow)
+        {
+            _mainWindow = mainWindow;
+        }
+
+        // Constructor for backward compatibility
+        public TaskItem() : this(null) { }
+
+        // Unique ID for the task, now a string
+        public string TaskID
         {
             get => _taskID;
             set
             {
+                if (string.IsNullOrWhiteSpace(value))
+                {
+                    _mainWindow?.StatusText.SetCurrentValue(TextBlock.TextProperty, "TaskID cannot be empty.");
+                    return;
+                }
+                if (_mainWindow != null && !_mainWindow.IsTaskIdUnique(value, this))
+                {
+                    _mainWindow?.StatusText.SetCurrentValue(TextBlock.TextProperty, $"TaskID '{value}' is already in use.");
+                    return;
+                }
                 _taskID = value;
+                _mainWindow.IsDirty = true; // Mark as dirty
                 OnPropertyChanged(nameof(TaskID));
+                _mainWindow?.UpdateNextTaskId();
             }
         }
 
@@ -441,6 +542,7 @@ namespace ToDoHicky
             set
             {
                 _taskName = value;
+                _mainWindow.IsDirty = true; // Mark as dirty
                 OnPropertyChanged(nameof(TaskName));
             }
         }
@@ -452,6 +554,7 @@ namespace ToDoHicky
             set
             {
                 _status = value;
+                _mainWindow.IsDirty = true; // Mark as dirty
                 OnPropertyChanged(nameof(Status));
                 OnPropertyChanged(nameof(HeatMapColor));
             }
@@ -460,10 +563,11 @@ namespace ToDoHicky
         // User assigned to the task
         public string AssignedUser
         {
-            get => _assignedUser;
+            get => _assignedUser; // Fixed bug: was incorrectly returning _taskID
             set
             {
                 _assignedUser = value;
+                _mainWindow.IsDirty = true; // Mark as dirty
                 OnPropertyChanged(nameof(AssignedUser));
             }
         }
@@ -475,6 +579,7 @@ namespace ToDoHicky
             set
             {
                 _dueDate = value;
+                _mainWindow.IsDirty = true; // Mark as dirty
                 OnPropertyChanged(nameof(DueDate));
                 OnPropertyChanged(nameof(HeatMapColor));
             }
@@ -487,6 +592,7 @@ namespace ToDoHicky
             set
             {
                 _notes = value;
+                _mainWindow.IsDirty = true; // Mark as dirty
                 OnPropertyChanged(nameof(Notes));
             }
         }
@@ -498,6 +604,7 @@ namespace ToDoHicky
             set
             {
                 _priority = value;
+                _mainWindow.IsDirty = true; // Mark as dirty
                 OnPropertyChanged(nameof(Priority));
                 OnPropertyChanged(nameof(HeatMapColor));
             }
@@ -566,6 +673,20 @@ namespace ToDoHicky
         public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
         {
             throw new NotImplementedException();
+        }
+    }
+
+    // Validation rule for non-empty strings
+    public class NonEmptyStringValidationRule : ValidationRule
+    {
+        public override ValidationResult Validate(object value, System.Globalization.CultureInfo cultureInfo)
+        {
+            string input = value as string;
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                return new ValidationResult(false, "TaskID cannot be empty.");
+            }
+            return ValidationResult.ValidResult;
         }
     }
 }

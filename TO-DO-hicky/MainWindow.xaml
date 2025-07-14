@@ -8,6 +8,8 @@
     <!-- Define resources used in the window, like the FlattenNewlinesConverter -->
     <Window.Resources>
         <local:FlattenNewlinesConverter x:Key="FlattenNewlinesConverter"/>
+        <!-- Validation rule for non-empty TaskID -->
+        <local:NonEmptyStringValidationRule x:Key="NonEmptyStringValidationRule"/>
     </Window.Resources>
     <!-- Main layout grid with margins -->
     <Grid Margin="10">
@@ -36,8 +38,16 @@
             </DataGrid.RowStyle>
             <!-- Define columns for the DataGrid -->
             <DataGrid.Columns>
-                <!-- ID column, read-only -->
-                <DataGridTextColumn Header="ID" Binding="{Binding TaskID}" Width="50" IsReadOnly="True"/>
+                <!-- ID column, now editable with validation -->
+                <DataGridTextColumn Header="ID" Width="50" IsReadOnly="False">
+                    <DataGridTextColumn.Binding>
+                        <Binding Path="TaskID" UpdateSourceTrigger="LostFocus">
+                            <Binding.ValidationRules>
+                                <local:NonEmptyStringValidationRule ValidatesOnTargetUpdated="True"/>
+                            </Binding.ValidationRules>
+                        </Binding>
+                    </DataGridTextColumn.Binding>
+                </DataGridTextColumn>
                 <!-- Task name column, resizable -->
                 <DataGridTextColumn Header="Task" Binding="{Binding TaskName}" Width="*"/>
                 <!-- Status dropdown with predefined options -->
