@@ -1,6 +1,4 @@
-TO-DO-hicky
-
-TO-DO-hicky is a task management application built using WPF and .NET 8.0. It lets users create, manage, and track tasks with alphanumeric TaskIDs, priority settings, due dates, and status tracking. Tasks are stored in a CSV file, and the app has a user-friendly interface with heatmap-style coloring for task statuses.
+"TO-DO-hicky" is a task management application built using WPF and .NET 8.0. It lets users create, manage, and track tasks with alphanumeric TaskIDs, priority settings, due dates, and status tracking. Tasks are stored in a CSV file, and the app has a user-friendly interface with heatmap-style coloring for task statuses.
 
 FEATURES
 
