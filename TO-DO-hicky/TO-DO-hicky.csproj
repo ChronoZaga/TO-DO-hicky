@@ -5,8 +5,8 @@
 		<UseWPF>true</UseWPF>
 		<RootNamespace>ToDoHicky</RootNamespace>
 		<ApplicationIcon>todo.ico</ApplicationIcon>
-		<FileVersion>1.1</FileVersion>
-		<AssemblyVersion>1.1</AssemblyVersion>
+		<FileVersion>1.2</FileVersion>
+		<AssemblyVersion>1.2</AssemblyVersion>
 	</PropertyGroup>
 	<ItemGroup>
 		<Content Include="todo.ico" />

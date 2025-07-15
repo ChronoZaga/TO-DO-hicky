@@ -1,5 +1,4 @@
-﻿// Main code-behind for TO-DO-hicky app, handling task management and UI logic
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -21,8 +20,6 @@ namespace ToDoHicky
         private ObservableCollection<TaskItem> _tasks = new ObservableCollection<TaskItem>();
         // View source for filtering tasks (e.g., hide completed)
         private CollectionViewSource _filteredTasksView;
-        // Path to the CSV file for task persistence
-        private readonly string _csvFilePath = "tasks.csv";
         // Tracks next available numeric task ID
         private int _nextTaskId = 1;
         // Flag to hide completed tasks
@@ -232,29 +229,31 @@ namespace ToDoHicky
             }
         }
 
-        // Loads tasks from CSV file
+        // Loads tasks from the most recent CSV file
         private void LoadTasksFromCsv()
         {
-            if (!File.Exists(_csvFilePath))
+            // Find the most recent CSV file
+            string csvFilePath = GetMostRecentCsvFile();
+            if (csvFilePath == null)
             {
-                StatusText.Text = $"CSV file not found at {_csvFilePath}";
+                StatusText.Text = "No CSV files found in the application directory.";
                 return;
             }
 
             try
             {
                 // Read entire file as a single string to handle multi-line fields
-                string csvContent = File.ReadAllText(_csvFilePath, Encoding.UTF8).Trim();
+                string csvContent = File.ReadAllText(csvFilePath, Encoding.UTF8).Trim();
                 if (string.IsNullOrEmpty(csvContent))
                 {
-                    StatusText.Text = "CSV file is empty";
+                    StatusText.Text = $"CSV file at {csvFilePath} is empty.";
                     return;
                 }
 
                 var lines = ParseCsvLines(csvContent);
                 if (lines.Length == 0)
                 {
-                    StatusText.Text = "CSV file contains no valid lines";
+                    StatusText.Text = $"CSV file at {csvFilePath} contains no valid lines.";
                     return;
                 }
 
@@ -271,7 +270,7 @@ namespace ToDoHicky
                 if (idIndex < 0 || taskIndex < 0 || statusIndex < 0 || userIndex < 0 ||
                     dueDateIndex < 0 || priorityIndex < 0 || notesIndex < 0)
                 {
-                    StatusText.Text = "Missing required headers in CSV. Expected: TaskID,Task,Status,AssignedUser,DueDate,Priority,Notes. Found: " + string.Join(",", headers);
+                    StatusText.Text = $"Missing required headers in CSV at {csvFilePath}. Expected: TaskID,Task,Status,AssignedUser,DueDate,Priority,Notes. Found: {string.Join(",", headers)}";
                     return;
                 }
 
@@ -281,14 +280,14 @@ namespace ToDoHicky
                     var fields = ParseCsvLine(lines[i]);
                     if (fields.Length < 7) // Ensure at least 7 fields (required columns)
                     {
-                        StatusText.Text = $"Row {i + 1} has too few fields: {string.Join(",", fields)}";
+                        StatusText.Text = $"Row {i + 1} has too few fields in {csvFilePath}: {string.Join(",", fields)}";
                         continue;
                     }
 
                     string taskId = fields[idIndex].Trim('"');
                     if (string.IsNullOrEmpty(taskId))
                     {
-                        StatusText.Text = $"Invalid TaskID in row {i + 1}: {fields[idIndex]}";
+                        StatusText.Text = $"Invalid TaskID in row {i + 1} of {csvFilePath}: {fields[idIndex]}";
                         continue;
                     }
 
@@ -302,7 +301,7 @@ namespace ToDoHicky
                         }
                         else
                         {
-                            StatusText.Text = $"Invalid DueDate format in row {i + 1}: {dueDateStr}";
+                            StatusText.Text = $"Invalid DueDate format in row {i + 1} of {csvFilePath}: {dueDateStr}";
                             continue;
                         }
                     }
@@ -311,14 +310,14 @@ namespace ToDoHicky
                     if (!new[] { "Not Started", "In Progress", "Completed" }.Contains(status))
                     {
                         status = "Not Started";
-                        StatusText.Text = $"Invalid Status in row {i + 1}: {fields[statusIndex]}, defaulting to Not Started";
+                        StatusText.Text = $"Invalid Status in row {i + 1} of {csvFilePath}: {fields[statusIndex]}, defaulting to Not Started";
                     }
 
                     string priority = fields[priorityIndex].Trim('"');
                     if (!new[] { "Low", "Medium", "High", "URGENT" }.Contains(priority))
                     {
                         priority = "Medium";
-                        StatusText.Text = $"Invalid Priority in row {i + 1}: {fields[priorityIndex]}, defaulting to Medium";
+                        StatusText.Text = $"Invalid Priority in row {i + 1} of {csvFilePath}: {fields[priorityIndex]}, defaulting to Medium";
                     }
 
                     string notes = fields[notesIndex].Trim('"');
@@ -344,20 +343,20 @@ namespace ToDoHicky
 
                 if (Tasks.Count == 0 && lines.Length > 1)
                 {
-                    StatusText.Text = "No valid tasks loaded. Check CSV format.";
+                    StatusText.Text = $"No valid tasks loaded from {csvFilePath}. Check CSV format.";
                 }
                 else
                 {
-                    StatusText.Text = $"Loaded {Tasks.Count} tasks successfully.";
+                    StatusText.Text = $"Loaded {Tasks.Count} tasks successfully from {csvFilePath}.";
                 }
             }
             catch (IOException ex)
             {
-                StatusText.Text = $"Error loading tasks: {ex.Message}";
+                StatusText.Text = $"Error loading tasks from {csvFilePath}: {ex.Message}";
             }
             catch (Exception ex)
             {
-                StatusText.Text = $"Unexpected error loading tasks: {ex.Message}";
+                StatusText.Text = $"Unexpected error loading tasks from {csvFilePath}: {ex.Message}";
             }
         }
 
@@ -381,19 +380,59 @@ namespace ToDoHicky
             return !Tasks.Any(t => t != currentTask && t.TaskID == taskId);
         }
 
-        // Saves tasks to CSV file
+        // Saves tasks to a new CSV file with timestamp in the filename
         private void SaveTasksToCsv()
         {
             try
             {
+                // Generate filename with timestamp (e.g., tasks_2025-07-15_10-27-23.csv)
+                string timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
+                string csvFilePath = $"tasks_{timestamp}.csv";
                 var lines = new[] { "\"TaskID\",\"Task\",\"Status\",\"AssignedUser\",\"DueDate\",\"Priority\",\"Notes\"" }.Concat(
                     Tasks.Select(t => $"\"{EscapeCsvField(t.TaskID)}\",\"{EscapeCsvField(t.TaskName)}\",\"{EscapeCsvField(t.Status)}\",\"{EscapeCsvField(t.AssignedUser)}\",\"{EscapeCsvField(t.DueDate?.ToString("yyyy-MM-dd") ?? "")}\",\"{EscapeCsvField(t.Priority)}\",\"{EscapeCsvField(t.Notes)}\"")
                 );
-                File.WriteAllLines(_csvFilePath, lines, Encoding.UTF8);
+                File.WriteAllLines(csvFilePath, lines, Encoding.UTF8);
             }
             catch (IOException)
             {
                 throw; // Rethrow to handle in caller
+            }
+        }
+
+        // Finds the most recent CSV file in the application directory
+        private string GetMostRecentCsvFile()
+        {
+            try
+            {
+                var directory = AppDomain.CurrentDomain.BaseDirectory;
+                var csvFiles = Directory.GetFiles(directory, "tasks_*.csv")
+                    .Where(f => {
+                        string fileName = Path.GetFileNameWithoutExtension(f);
+                        if (!fileName.StartsWith("tasks_")) return false;
+                        string timestamp = fileName.Substring(6); // Get part after "tasks_"
+                        return DateTime.TryParseExact(timestamp, "yyyy-MM-dd_HH-mm-ss",
+                            System.Globalization.CultureInfo.InvariantCulture,
+                            System.Globalization.DateTimeStyles.None, out _);
+                    })
+                    .ToList();
+
+                if (!csvFiles.Any())
+                {
+                    return null; // No valid CSV files found
+                }
+
+                // Sort files by timestamp in descending order and take the most recent
+                var mostRecentFile = csvFiles
+                    .Select(f => new { Path = f, FileName = Path.GetFileNameWithoutExtension(f) })
+                    .OrderByDescending(f => DateTime.ParseExact(f.FileName.Substring(6), "yyyy-MM-dd_HH-mm-ss",
+                        System.Globalization.CultureInfo.InvariantCulture))
+                    .FirstOrDefault();
+
+                return mostRecentFile?.Path;
+            }
+            catch (Exception)
+            {
+                return null; // Return null if there's an error accessing files
             }
         }
 
