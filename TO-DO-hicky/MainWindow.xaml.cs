@@ -96,6 +96,11 @@ namespace ToDoHicky
         {
             InitializeComponent();
             DataContext = this;
+            string csvDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "CSV");
+            if (!Directory.Exists(csvDirectory))
+            {
+                Directory.CreateDirectory(csvDirectory);
+            }
             _filteredTasksView = new CollectionViewSource { Source = Tasks };
             _filteredTasksView.Filter += ApplyFilter;
             LoadTasksFromCsv();
@@ -171,7 +176,7 @@ namespace ToDoHicky
         // Handles key presses in DataGrid (e.g., Delete key to remove task)
         private void TasksGrid_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-            if (e.Key == Key.Delete && TasksGrid.SelectedItem is TaskItem selectedTask)
+            if (e.Key == Key.Delete && TasksGrid.SelectedItem is TaskItem selectedTask && TasksGrid.CurrentColumn != NotesColumn)
             {
                 var result = MessageBox.Show($"Are you sure you want to delete the task '{selectedTask.TaskName}'?", "Confirm Delete", MessageBoxButton.YesNo, MessageBoxImage.Question);
                 if (result == MessageBoxResult.Yes)
@@ -236,7 +241,7 @@ namespace ToDoHicky
             string csvFilePath = GetMostRecentCsvFile();
             if (csvFilePath == null)
             {
-                StatusText.Text = "No CSV files found in the application directory.";
+                StatusText.Text = "No CSV files found in the CSV subdirectory.";
                 return;
             }
 
@@ -387,7 +392,8 @@ namespace ToDoHicky
             {
                 // Generate filename with timestamp (e.g., tasks_2025-07-15_10-27-23.csv)
                 string timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
-                string csvFilePath = $"tasks_{timestamp}.csv";
+                string csvDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "CSV");
+                string csvFilePath = Path.Combine(csvDirectory, $"tasks_{timestamp}.csv");
                 var lines = new[] { "\"TaskID\",\"Task\",\"Status\",\"AssignedUser\",\"DueDate\",\"Priority\",\"Notes\"" }.Concat(
                     Tasks.Select(t => $"\"{EscapeCsvField(t.TaskID)}\",\"{EscapeCsvField(t.TaskName)}\",\"{EscapeCsvField(t.Status)}\",\"{EscapeCsvField(t.AssignedUser)}\",\"{EscapeCsvField(t.DueDate?.ToString("yyyy-MM-dd") ?? "")}\",\"{EscapeCsvField(t.Priority)}\",\"{EscapeCsvField(t.Notes)}\"")
                 );
@@ -404,7 +410,7 @@ namespace ToDoHicky
         {
             try
             {
-                var directory = AppDomain.CurrentDomain.BaseDirectory;
+                var directory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "CSV");
                 var csvFiles = Directory.GetFiles(directory, "tasks_*.csv")
                     .Where(f => {
                         string fileName = Path.GetFileNameWithoutExtension(f);

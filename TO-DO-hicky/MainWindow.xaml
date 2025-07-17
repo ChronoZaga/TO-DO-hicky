@@ -4,7 +4,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
         xmlns:local="clr-namespace:ToDoHicky"
-        Title="TO-DO-hicky" Height="450" Width="1000">
+        Title="TO-DO-hicky" Height="691" Width="1000">
     <!-- Define resources used in the window, like the FlattenNewlinesConverter -->
     <Window.Resources>
         <local:FlattenNewlinesConverter x:Key="FlattenNewlinesConverter"/>
@@ -13,11 +13,12 @@
     </Window.Resources>
     <!-- Main layout grid with margins -->
     <Grid Margin="10">
-        <!-- Define grid rows: buttons, checkbox, datagrid, notes textbox, status text -->
+        <!-- Define grid rows: buttons, checkbox, datagrid, splitter, notes textbox, status text -->
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="2*"/>
+            <RowDefinition Height="5"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -87,7 +88,7 @@
                     </DataGridComboBoxColumn.ItemsSource>
                 </DataGridComboBoxColumn>
                 <!-- Notes column with single-line display and multi-line editing -->
-                <DataGridTemplateColumn Header="Notes" Width="200">
+                <DataGridTemplateColumn x:Name="NotesColumn" Header="Notes" Width="200">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <TextBlock Text="{Binding Notes, Converter={StaticResource FlattenNewlinesConverter}}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
@@ -101,9 +102,11 @@
                 </DataGridTemplateColumn>
             </DataGrid.Columns>
         </DataGrid>
+        <!-- GridSplitter for resizing between DataGrid and NotesTextBox -->
+        <GridSplitter Grid.Row="3" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="Gray"/>
         <!-- TextBox for editing selected task's notes -->
-        <TextBox Grid.Row="3" x:Name="NotesTextBox" AcceptsReturn="True" AcceptsTab="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Text="{Binding SelectedItem.Notes, ElementName=TasksGrid, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding HasSelectedTask}"/>
+        <TextBox Grid.Row="4" x:Name="NotesTextBox" AcceptsReturn="True" AcceptsTab="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Text="{Binding SelectedItem.Notes, ElementName=TasksGrid, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding HasSelectedTask}"/>
         <!-- Status text for feedback messages -->
-        <TextBlock Grid.Row="4" x:Name="StatusText" Margin="0,10,0,0" Foreground="Red"/>
+        <TextBlock Grid.Row="5" x:Name="StatusText" Margin="0,10,0,0" Foreground="Red"/>
     </Grid>
 </Window>
