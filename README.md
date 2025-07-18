@@ -22,6 +22,8 @@ PREREQUISITES
 Operating System: Windows (due to WPF and .NET 8.0-windows framework)
 Disk Space: Minimal, for the app and CSV file storage
 
+https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/runtime-desktop-8.0.18-windows-x64-installer
+
 USAGE
 
 1. Launching the App
